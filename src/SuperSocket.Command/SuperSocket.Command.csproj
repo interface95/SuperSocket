@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>SuperSocket command pattern library providing a structured request processing framework with command discovery, dependency injection support, and flexible command dispatching based on message keys.</Description>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net9.0' Or '$(TargetFramework)' == 'net10.0'">
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Text.Json" />
@@ -10,7 +15,10 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
   <ItemGroup>
-   <ProjectReference Include="../SuperSocket.Primitives/SuperSocket.Primitives.csproj" />
+    <ProjectReference Include="../SuperSocket.Command.SourceGeneration/SuperSocket.Command.SourceGeneration.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../SuperSocket.Primitives/SuperSocket.Primitives.csproj" />
     <ProjectReference Include="../SuperSocket.Server.Abstractions/SuperSocket.Server.Abstractions.csproj" />
   </ItemGroup>
 </Project>

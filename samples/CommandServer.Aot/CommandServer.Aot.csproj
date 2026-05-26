@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(SamplesTargetFramework)</TargetFramework>
+    <TargetFrameworks></TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Description>SuperSocket AOT Command Server sample demonstrating source-generated command registration for Native AOT publishing.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SuperSocket.Server/SuperSocket.Server.csproj" />
+    <ProjectReference Include="../../src/SuperSocket.Command/SuperSocket.Command.csproj" />
+    <ProjectReference Include="../../src/SuperSocket.Command.SourceGeneration/SuperSocket.Command.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+</Project>

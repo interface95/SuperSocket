@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomProtocol", "CustomPro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KestrelHttp2DetachDemo", "KestrelHttp2DetachDemo\KestrelHttp2DetachDemo.csproj", "{36B17720-B79F-48C3-93C2-96FCA0635FEE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommandServer.Aot", "CommandServer.Aot\CommandServer.Aot.csproj", "{321C6E75-F150-44DE-BD07-A3B7F8722C28}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -167,6 +169,18 @@ Global
 		{36B17720-B79F-48C3-93C2-96FCA0635FEE}.Release|x64.Build.0 = Release|Any CPU
 		{36B17720-B79F-48C3-93C2-96FCA0635FEE}.Release|x86.ActiveCfg = Release|Any CPU
 		{36B17720-B79F-48C3-93C2-96FCA0635FEE}.Release|x86.Build.0 = Release|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Debug|x64.Build.0 = Debug|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Debug|x86.Build.0 = Debug|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Release|Any CPU.Build.0 = Release|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Release|x64.ActiveCfg = Release|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Release|x64.Build.0 = Release|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Release|x86.ActiveCfg = Release|Any CPU
+		{321C6E75-F150-44DE-BD07-A3B7F8722C28}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

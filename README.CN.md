@@ -27,6 +27,7 @@
 
 5. **命令处理系统：**
     基于命令的处理模型，高效处理客户端请求。
+    SuperSocket.Command 也提供面向 Native AOT 的源码生成器注册路径。
 
 6. **WebSocket 支持：**
     完整实现 WebSocket 协议，包括压缩等扩展功能。
@@ -64,6 +65,7 @@
 | **SuperSocket.Server** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Server)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Server) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Server.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Server/)|
 | **SuperSocket.Server.Abstractions** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Server.Abstractions)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Server.Abstractions) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Server.Abstractions.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Server.Abstractions/)|
 | **SuperSocket.Command** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Command)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Command) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Command.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Command/)|
+| **SuperSocket.Command.SourceGeneration** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Command.SourceGeneration)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Command.SourceGeneration) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Command.SourceGeneration.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Command.SourceGeneration/)|
 | **SuperSocket.Client** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Client)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Client) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Client.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Client/)|
 | **SuperSocket.Client.Proxy** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Client.Proxy)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Client.Proxy) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Client.Proxy.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Client.Proxy/)|
 | **SuperSocket.WebSocket** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.WebSocket)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.WebSocket) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.WebSocket.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.WebSocket/)|
@@ -75,6 +77,12 @@
 
 
 Nightly build packages:  https://www.myget.org/F/supersocket/api/v3/index.json
+
+---
+
+##### AOT 友好的命令注册
+
+对于 Native AOT 应用，`SuperSocket.Command` 提供源码生成的命令注册路径。声明实现 `IGeneratedCommandRegistry<TKey, TPackageInfo>` 的 `[CommandRegistry]` partial class，在 DI 中注册它，并使用 `UseGeneratedCommand<TKey, TPackageInfo>()`，而不是 legacy 反射式命令发现路径。完整的 `<PublishAot>true</PublishAot>` 示例请参考 [CommandSourceGenerator.md](docs/CommandSourceGenerator.md) 和 `samples/CommandServer.Aot`。
 
 ---
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -137,7 +138,7 @@ namespace SuperSocket.Server.Host
         /// <param name="hostBuilderDelegate">The action to configure the server host builder.</param>
         /// <param name="serverName">The optional server name for keyed service registration. Use this to register multiple instances of the same server type.</param>
         /// <returns>The updated host builder.</returns>
-        public MultipleServerHostBuilder AddServer<TReceivePackage, TPipelineFilter>(Action<ISuperSocketHostBuilder<TReceivePackage>> hostBuilderDelegate, string serverName = null)
+        public MultipleServerHostBuilder AddServer<TReceivePackage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilter>(Action<ISuperSocketHostBuilder<TReceivePackage>> hostBuilderDelegate, string serverName = null)
             where TReceivePackage : class
             where TPipelineFilter : class, IPipelineFilter<TReceivePackage>
         {            
@@ -167,7 +168,7 @@ namespace SuperSocket.Server.Host
         /// <param name="hostBuilderDelegate">The action to configure the server host builder.</param>
         /// <param name="serverName">The optional server name for keyed service registration. Use this to register multiple instances of the same server type.</param>
         /// <returns>The updated host builder.</returns>
-        public MultipleServerHostBuilder AddServer<TSuperSocketService, TReceivePackage, TPipelineFilter>(Action<SuperSocketHostBuilder<TReceivePackage>> hostBuilderDelegate, string serverName = null)
+        public MultipleServerHostBuilder AddServer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TSuperSocketService, TReceivePackage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilter>(Action<SuperSocketHostBuilder<TReceivePackage>> hostBuilderDelegate, string serverName = null)
             where TReceivePackage : class
             where TPipelineFilter : class, IPipelineFilter<TReceivePackage>
             where TSuperSocketService : SuperSocketService<TReceivePackage>

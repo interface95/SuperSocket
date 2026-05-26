@@ -14,13 +14,16 @@ namespace SuperSocket.ProtoBase
     {
         private readonly IServiceProvider _serviceProvider;
 
+        private readonly IPackageDecoder<TPackageInfo> _packageDecoder;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultPipelineFilterFactory{TPackageInfo, TPipelineFilter}"/> class.
         /// </summary>
         /// <param name="serviceProvider">The service provider for dependency injection.</param>
         public DefaultPipelineFilterFactory(IServiceProvider serviceProvider)
         {
-            this._serviceProvider = serviceProvider;
+            _serviceProvider = serviceProvider;
+            _packageDecoder = serviceProvider.GetService(typeof(IPackageDecoder<TPackageInfo>)) as IPackageDecoder<TPackageInfo>;
         }
 
         /// <summary>
@@ -29,7 +32,9 @@ namespace SuperSocket.ProtoBase
         /// <returns>The created pipeline filter.</returns>
         protected override IPipelineFilter<TPackageInfo> Create()
         {
-            return _serviceProvider.GetRequiredService<TPipelineFilter>();
+            var filter = _serviceProvider.GetRequiredService<TPipelineFilter>();
+            filter.Decoder = _packageDecoder;
+            return filter;
         }
     }
 }

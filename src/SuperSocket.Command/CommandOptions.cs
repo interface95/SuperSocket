@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using SuperSocket.ProtoBase;
 using SuperSocket.Server.Abstractions.Session;
 using System.Threading;
@@ -21,6 +23,7 @@ namespace SuperSocket.Command
         {
             CommandSources = new List<ICommandSource>();
             _globalCommandFilterTypes = new List<Type>();
+            _globalCommandFilterFactories = new List<Func<IServiceProvider, ICommandFilter>>();
         }
 
         /// <summary>
@@ -35,10 +38,40 @@ namespace SuperSocket.Command
 
         private List<Type> _globalCommandFilterTypes;
 
+        private List<Func<IServiceProvider, ICommandFilter>> _globalCommandFilterFactories;
+
         /// <summary>
         /// Gets the list of global command filter types.
         /// </summary>
         public IReadOnlyList<Type> GlobalCommandFilterTypes => _globalCommandFilterTypes;
+
+        /// <summary>
+        /// Creates the command filters for a command by prepending configured global filters.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider used to create global filter instances.</param>
+        /// <param name="commandFilters">The command-specific filters.</param>
+        /// <returns>The combined command filters.</returns>
+        public IReadOnlyList<ICommandFilter> CreateCommandFilters(IServiceProvider serviceProvider, IReadOnlyList<ICommandFilter> commandFilters)
+        {
+            ArgumentNullException.ThrowIfNull(serviceProvider);
+
+            commandFilters ??= Array.Empty<ICommandFilter>();
+
+            if (_globalCommandFilterFactories.Count == 0)
+            {
+                return commandFilters;
+            }
+
+            var filters = new List<ICommandFilter>(_globalCommandFilterFactories.Count + commandFilters.Count);
+
+            foreach (Func<IServiceProvider, ICommandFilter> filterFactory in _globalCommandFilterFactories)
+            {
+                filters.Add(filterFactory(serviceProvider));
+            }
+
+            filters.AddRange(commandFilters);
+            return filters;
+        }
 
         /// <summary>
         /// Registers a handler for unknown packages.
@@ -57,6 +90,7 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="criteria">The criteria to filter command types.</param>
         /// <returns>An enumerable collection of command types.</returns>
+        [RequiresUnreferencedCode("Loads assemblies by name and enumerates exported types. Not AOT/trim compatible.")]
         public IEnumerable<Type> GetCommandTypes(Predicate<Type> criteria)
         {
             var commandSources = CommandSources;
@@ -77,9 +111,19 @@ namespace SuperSocket.Command
             return commandTypes;
         }
 
+        internal void AddGlobalCommandFilterType<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TCommandFilter>()
+            where TCommandFilter : CommandFilterBaseAttribute
+        {
+            _globalCommandFilterTypes.Add(typeof(TCommandFilter));
+            _globalCommandFilterFactories.Add(static serviceProvider => ActivatorUtilities.CreateInstance<TCommandFilter>(serviceProvider));
+        }
+
+        [RequiresUnreferencedCode("Registers a global command filter from a runtime Type. Use AddGlobalCommandFilter<TCommandFilter>() for trimming/AOT compatibility.")]
         internal void AddGlobalCommandFilterType(Type commandFilterType)
         {
             _globalCommandFilterTypes.Add(commandFilterType);
+            _globalCommandFilterFactories.Add(serviceProvider => ActivatorUtilities.CreateInstance(serviceProvider, commandFilterType) as ICommandFilter
+                ?? throw new InvalidOperationException($"The command filter type '{commandFilterType.FullName}' did not create an ICommandFilter instance."));
         }
     }
 
@@ -98,6 +142,7 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="criteria">The criteria to filter command types.</param>
         /// <returns>An enumerable collection of command types.</returns>
+        [RequiresUnreferencedCode("Loads assemblies by name and enumerates exported types. Not AOT/trim compatible.")]
         public IEnumerable<Type> GetCommandTypes(Predicate<Type> criteria)
         {
             return GetCommandTypesFromAssembly(Assembly.Load(Name)).Where(t => criteria(t));
@@ -119,6 +164,7 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="criteria">The criteria to filter command types.</param>
         /// <returns>An enumerable collection of command types.</returns>
+        [RequiresUnreferencedCode("Loads assemblies by name and enumerates exported types. Not AOT/trim compatible.")]
         public IEnumerable<Type> GetCommandTypes(Predicate<Type> criteria)
         {
             return GetCommandTypesFromAssembly(Assembly).Where(t => criteria(t));
@@ -135,6 +181,7 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="assembly">The assembly to retrieve types from.</param>
         /// <returns>An enumerable collection of exported types.</returns>
+        [RequiresUnreferencedCode("Loads assemblies by name and enumerates exported types. Not AOT/trim compatible.")]
         public IEnumerable<Type> GetCommandTypesFromAssembly(Assembly assembly)
         {
             return assembly.GetExportedTypes();
@@ -156,6 +203,7 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="criteria">The criteria to filter command types.</param>
         /// <returns>An enumerable collection containing the command type if it matches the criteria.</returns>
+        [RequiresUnreferencedCode("Loads assemblies by name and enumerates exported types. Not AOT/trim compatible.")]
         public IEnumerable<Type> GetCommandTypes(Predicate<Type> criteria)
         {
             if (criteria(CommandType))
@@ -193,6 +241,7 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="commandOptions">The command options to configure.</param>
         /// <param name="commandAssembly">The assembly containing commands.</param>
+        [RequiresUnreferencedCode("Loads assemblies by name and enumerates exported types. Not AOT/trim compatible.")]
         public static void AddCommandAssembly(this CommandOptions commandOptions, Assembly commandAssembly)
         {
             commandOptions.CommandSources.Add(new ActualCommandAssembly { Assembly = commandAssembly });
@@ -203,10 +252,10 @@ namespace SuperSocket.Command
         /// </summary>
         /// <typeparam name="TCommandFilter">The type of the command filter to add.</typeparam>
         /// <param name="commandOptions">The command options to configure.</param>
-        public static void AddGlobalCommandFilter<TCommandFilter>(this CommandOptions commandOptions)
+        public static void AddGlobalCommandFilter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TCommandFilter>(this CommandOptions commandOptions)
             where TCommandFilter : CommandFilterBaseAttribute
         {
-            commandOptions.AddGlobalCommandFilterType(typeof(TCommandFilter));
+            commandOptions.AddGlobalCommandFilterType<TCommandFilter>();
         }
 
         /// <summary>
@@ -215,6 +264,7 @@ namespace SuperSocket.Command
         /// <param name="commandOptions">The command options to configure.</param>
         /// <param name="commandFilterType">The type of the command filter to add.</param>
         /// <exception cref="Exception">Thrown if the command filter type does not inherit from <see cref="CommandFilterBaseAttribute"/>.</exception>
+        [RequiresUnreferencedCode("Registers a global command filter from a runtime Type. Use AddGlobalCommandFilter<TCommandFilter>() for trimming/AOT compatibility.")]
         public static void AddGlobalCommandFilter(this CommandOptions commandOptions, Type commandFilterType)
         {
             if (!typeof(CommandFilterBaseAttribute).IsAssignableFrom(commandFilterType))

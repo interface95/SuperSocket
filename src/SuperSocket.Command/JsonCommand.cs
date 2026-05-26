@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
 using SuperSocket.ProtoBase;
@@ -61,6 +62,10 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="content">The JSON content to deserialize.</param>
         /// <returns>The deserialized JSON object.</returns>
+        [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "JsonCommand is a legacy convenience base that uses System.Text.Json reflection-based generic deserialization; AOT users should override Deserialize with a JsonTypeInfo/JsonSerializerContext-based implementation.")]
+#if NET7_0_OR_GREATER
+        [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "JsonCommand is a legacy convenience base that uses System.Text.Json reflection-based generic deserialization; AOT users should override Deserialize with a JsonTypeInfo/JsonSerializerContext-based implementation.")]
+#endif
         protected virtual TJsonObject Deserialize(string content)
         {
             return JsonSerializer.Deserialize<TJsonObject>(content, JsonSerializerOptions);
@@ -117,6 +122,10 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="content">The JSON content to deserialize.</param>
         /// <returns>The deserialized JSON object.</returns>
+        [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "JsonAsyncCommand is a legacy convenience base that uses System.Text.Json reflection-based generic deserialization; AOT users should override Deserialize with a JsonTypeInfo/JsonSerializerContext-based implementation.")]
+#if NET7_0_OR_GREATER
+        [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "JsonAsyncCommand is a legacy convenience base that uses System.Text.Json reflection-based generic deserialization; AOT users should override Deserialize with a JsonTypeInfo/JsonSerializerContext-based implementation.")]
+#endif
         protected virtual TJsonObject Deserialize(string content)
         {
             return JsonSerializer.Deserialize<TJsonObject>(content, JsonSerializerOptions);

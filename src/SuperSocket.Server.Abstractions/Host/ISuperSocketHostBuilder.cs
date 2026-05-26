@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -52,7 +53,7 @@ namespace SuperSocket.Server.Abstractions.Host
         /// </summary>
         /// <typeparam name="TMiddleware">The type of middleware to use.</typeparam>
         /// <returns>The host builder instance for chaining.</returns>
-        ISuperSocketHostBuilder<TReceivePackage> UseMiddleware<TMiddleware>()
+        ISuperSocketHostBuilder<TReceivePackage> UseMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TMiddleware>()
             where TMiddleware : class, IMiddleware;
 
         /// <summary>
@@ -60,7 +61,7 @@ namespace SuperSocket.Server.Abstractions.Host
         /// </summary>
         /// <typeparam name="TPipelineFilter">The type of the pipeline filter to use.</typeparam>
         /// <returns>The host builder instance for chaining.</returns>
-        ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilter<TPipelineFilter>()
+        ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilter>()
             where TPipelineFilter : class, IPipelineFilter<TReceivePackage>;
 
         /// <summary>
@@ -68,7 +69,7 @@ namespace SuperSocket.Server.Abstractions.Host
         /// </summary>
         /// <typeparam name="TPipelineFilterFactory">The type of the pipeline filter factory to use.</typeparam>
         /// <returns>The host builder instance for chaining.</returns>
-        ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilterFactory<TPipelineFilterFactory>()
+        ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilterFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilterFactory>()
             where TPipelineFilterFactory : class, IPipelineFilterFactory<TReceivePackage>;
 
         /// <summary>
@@ -76,7 +77,7 @@ namespace SuperSocket.Server.Abstractions.Host
         /// </summary>
         /// <typeparam name="THostedService">The type of hosted service to register.</typeparam>
         /// <returns>The host builder instance for chaining.</returns>
-        ISuperSocketHostBuilder<TReceivePackage> UseHostedService<THostedService>()
+        ISuperSocketHostBuilder<TReceivePackage> UseHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>()
             where THostedService : class, IHostedService;
 
         /// <summary>

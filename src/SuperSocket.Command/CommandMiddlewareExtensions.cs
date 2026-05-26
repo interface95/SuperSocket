@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using SuperSocket.Command;
 using SuperSocket.ProtoBase;
@@ -19,7 +20,7 @@ namespace SuperSocket.Server
         /// <typeparam name="TPackageInfo">The type of the package.</typeparam>
         /// <returns>The key type of the package.</returns>
         /// <exception cref="Exception">Thrown if the package type does not implement <see cref="IKeyedPackageInfo{TKey}"/>.</exception>
-        public static Type GetKeyType<TPackageInfo>()
+        public static Type GetKeyType<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] TPackageInfo>()
         {
             var interfaces = typeof(TPackageInfo).GetInterfaces();
             var keyInterface = interfaces.FirstOrDefault(i => 
@@ -36,6 +37,10 @@ namespace SuperSocket.Server
         /// </summary>
         /// <param name="builder">The SuperSocket host builder.</param>
         /// <returns>The configured host builder.</returns>
+        [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "This method only binds the legacy CommandOptions configuration section; command discovery remains annotated separately and generated registries avoid reflection dispatch.")]
+#if NET7_0_OR_GREATER
+        [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "This method only binds the legacy CommandOptions configuration section; command discovery remains annotated separately and generated registries avoid reflection dispatch.")]
+#endif
         private static ISuperSocketHostBuilder ConfigureCommand(this ISuperSocketHostBuilder builder)
         {
             return builder.ConfigureServices((hostCxt, services) =>
@@ -50,7 +55,16 @@ namespace SuperSocket.Server
         /// <typeparam name="TPackageInfo">The type of the package.</typeparam>
         /// <param name="builder">The SuperSocket host builder.</param>
         /// <returns>The configured host builder.</returns>
-        public static ISuperSocketHostBuilder<TPackageInfo> UseCommand<TPackageInfo>(this ISuperSocketHostBuilder<TPackageInfo> builder)
+        /// <remarks>
+        /// This overload discovers the key type and closes the command middleware generic method at runtime.
+        /// For AOT scenarios, prefer <c>UseCommand&lt;TKey, TPackageInfo&gt;(...)</c> with explicit type arguments
+        /// or <c>UseGeneratedCommand&lt;TKey, TPackageInfo&gt;()</c> with a generated registry.
+        /// </remarks>
+        [RequiresUnreferencedCode("Uses reflection to discover keyed package metadata and invoke a closed generic command middleware overload. Prefer UseCommand<TKey, TPackageInfo>(...) or UseGeneratedCommand<TKey, TPackageInfo>() for AOT compatibility.")]
+#if NET7_0_OR_GREATER
+        [RequiresDynamicCode("Uses MakeGenericMethod to construct a closed generic command middleware overload at runtime. Prefer UseCommand<TKey, TPackageInfo>(...) or UseGeneratedCommand<TKey, TPackageInfo>() for AOT compatibility.")]
+#endif
+        public static ISuperSocketHostBuilder<TPackageInfo> UseCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] TPackageInfo>(this ISuperSocketHostBuilder<TPackageInfo> builder)
             where TPackageInfo : class
         {
             var keyType = GetKeyType<TPackageInfo>();
@@ -69,7 +83,16 @@ namespace SuperSocket.Server
         /// <param name="builder">The SuperSocket host builder.</param>
         /// <param name="configurator">The configurator for command options.</param>
         /// <returns>The configured host builder.</returns>
-        public static ISuperSocketHostBuilder<TPackageInfo> UseCommand<TPackageInfo>(this ISuperSocketHostBuilder<TPackageInfo> builder, Action<CommandOptions> configurator)
+        /// <remarks>
+        /// This overload uses <c>UseCommand&lt;TPackageInfo&gt;()</c>, which discovers and closes generic command middleware at runtime.
+        /// For AOT scenarios, prefer <c>UseCommand&lt;TKey, TPackageInfo&gt;(...)</c> with explicit type arguments
+        /// or <c>UseGeneratedCommand&lt;TKey, TPackageInfo&gt;()</c> with a generated registry.
+        /// </remarks>
+        [RequiresUnreferencedCode("Uses reflection to discover keyed package metadata and invoke a closed generic command middleware overload. Prefer UseCommand<TKey, TPackageInfo>(...) or UseGeneratedCommand<TKey, TPackageInfo>() for AOT compatibility.")]
+#if NET7_0_OR_GREATER
+        [RequiresDynamicCode("Uses MakeGenericMethod to construct a closed generic command middleware overload at runtime. Prefer UseCommand<TKey, TPackageInfo>(...) or UseGeneratedCommand<TKey, TPackageInfo>() for AOT compatibility.")]
+#endif
+        public static ISuperSocketHostBuilder<TPackageInfo> UseCommand<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] TPackageInfo>(this ISuperSocketHostBuilder<TPackageInfo> builder, Action<CommandOptions> configurator)
             where TPackageInfo : class
         {
              return builder.UseCommand()
@@ -91,7 +114,7 @@ namespace SuperSocket.Server
         public static ISuperSocketHostBuilder<TPackageInfo> UseCommand<TKey, TPackageInfo>(this ISuperSocketHostBuilder<TPackageInfo> builder, Action<CommandOptions> configurator, IEqualityComparer<TKey> comparer)
             where TPackageInfo : class, IKeyedPackageInfo<TKey>
         {
-            return builder.UseCommand(configurator)
+            return builder.UseCommand<TKey, TPackageInfo>(configurator)
                 .ConfigureServices((hostCtx, services) =>
                 {
                     services.AddSingleton<IEqualityComparer<TKey>>(comparer);

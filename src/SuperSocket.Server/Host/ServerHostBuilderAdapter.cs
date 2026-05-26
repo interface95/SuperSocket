@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -180,7 +181,7 @@ namespace SuperSocket.Server.Host
         /// Registers a hosted service of the specified type.
         /// </summary>
         /// <typeparam name="THostedService">The type of the hosted service.</typeparam>
-        protected void RegisterHostedService<THostedService>()
+        protected void RegisterHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>()
             where THostedService : class, IHostedService
         {
             base.HostBuilder.ConfigureServices((context, services) =>
@@ -194,7 +195,7 @@ namespace SuperSocket.Server.Host
         /// </summary>
         /// <typeparam name="THostedService">The type of the hosted service.</typeparam>
         /// <param name="servicesInHost">The service collection to register the hosted service in.</param>
-        protected override void RegisterHostedService<THostedService>(IServiceCollection servicesInHost)
+        protected override void RegisterHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>(IServiceCollection servicesInHost)
         {
             _currentServices.AddSingleton<IHostedService, THostedService>();
             _currentServices.AddSingleton<IServerInfo>(s => s.GetService<IHostedService>() as IServerInfo);
@@ -238,7 +239,7 @@ namespace SuperSocket.Server.Host
         /// </summary>
         /// <typeparam name="THostedService">The type of the hosted service.</typeparam>
         /// <returns>The current instance of <see cref="ISuperSocketHostBuilder{TReceivePackage}"/>.</returns>
-        public override ISuperSocketHostBuilder<TReceivePackage> UseHostedService<THostedService>()
+        public override ISuperSocketHostBuilder<TReceivePackage> UseHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>()
         {
             RegisterHostedService<THostedService>();
             return this;

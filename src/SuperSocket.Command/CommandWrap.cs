@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +19,7 @@ namespace SuperSocket.Command
     /// <typeparam name="TPackageInfo">The type of the package information.</typeparam>
     /// <typeparam name="IPackageInterface">The interface implemented by the package.</typeparam>
     /// <typeparam name="TCommand">The type of the wrapped command.</typeparam>
-    class CommandWrap<TAppSession, TPackageInfo, IPackageInterface, TCommand> : ICommand<TAppSession, TPackageInfo>, ICommandWrap
+    public sealed class CommandWrap<TAppSession, TPackageInfo, IPackageInterface, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TCommand> : ICommand<TAppSession, TPackageInfo>, ICommandWrap
         where TAppSession : IAppSession
         where TPackageInfo : IPackageInterface
         where TCommand : ICommand<TAppSession, IPackageInterface>
@@ -43,7 +44,7 @@ namespace SuperSocket.Command
         /// <param name="serviceProvider">The service provider for dependency injection.</param>
         public CommandWrap(IServiceProvider serviceProvider)
         {
-            InnerCommand = (TCommand)ActivatorUtilities.CreateInstance(serviceProvider, typeof(TCommand));
+            InnerCommand = ActivatorUtilities.CreateInstance<TCommand>(serviceProvider);
         }
 
         /// <summary>
@@ -66,7 +67,7 @@ namespace SuperSocket.Command
     /// <typeparam name="TPackageInfo">The type of the package information.</typeparam>
     /// <typeparam name="IPackageInterface">The interface implemented by the package.</typeparam>
     /// <typeparam name="TAsyncCommand">The type of the wrapped asynchronous command.</typeparam>
-    class AsyncCommandWrap<TAppSession, TPackageInfo, IPackageInterface, TAsyncCommand> : IAsyncCommand<TAppSession, TPackageInfo>, ICommandWrap
+    public sealed class AsyncCommandWrap<TAppSession, TPackageInfo, IPackageInterface, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TAsyncCommand> : IAsyncCommand<TAppSession, TPackageInfo>, ICommandWrap
         where TAppSession : IAppSession
         where TPackageInfo : IPackageInterface
         where TAsyncCommand : IAsyncCommand<TAppSession, IPackageInterface>
@@ -91,7 +92,7 @@ namespace SuperSocket.Command
         /// <param name="serviceProvider">The service provider for dependency injection.</param>
         public AsyncCommandWrap(IServiceProvider serviceProvider)
         {
-            InnerCommand = (TAsyncCommand)ActivatorUtilities.CreateInstance(serviceProvider, typeof(TAsyncCommand));
+            InnerCommand = ActivatorUtilities.CreateInstance<TAsyncCommand>(serviceProvider);
         }
 
         /// <summary>

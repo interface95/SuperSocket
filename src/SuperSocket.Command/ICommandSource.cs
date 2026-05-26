@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 
 namespace SuperSocket.Command
@@ -14,6 +15,7 @@ namespace SuperSocket.Command
         /// </summary>
         /// <param name="criteria">The criteria to filter command types.</param>
         /// <returns>An enumerable collection of command types that match the criteria.</returns>
+        [RequiresUnreferencedCode("Loads assemblies by name and enumerates exported types. Not AOT/trim compatible.")]
         IEnumerable<Type> GetCommandTypes(Predicate<Type> criteria);
     }
 }

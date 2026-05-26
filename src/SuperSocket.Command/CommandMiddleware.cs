@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -69,7 +70,7 @@ namespace SuperSocket.Command
         /// <summary>
         /// Dictionary of available commands indexed by their keys.
         /// </summary>
-        private Dictionary<TKey, ICommandSet> _commands;
+        private Dictionary<TKey, IGeneratedCommandSet<TKey, TPackageInfo>> _commands;
 
         /// <summary>
         /// Handler for processing packages with unknown keys.
@@ -103,10 +104,36 @@ namespace SuperSocket.Command
         /// <param name="serviceProvider">The service provider for dependency injection.</param>
         /// <param name="commandOptions">The options for configuring commands.</param>
         /// <param name="packageMapper">A custom package mapper implementation.</param>
+        [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Mixed CommandMiddleware keeps the legacy reflection path for compatibility; AOT-clean users should use GeneratedCommandMiddleware with a generated registry.")]
+#if NET7_0_OR_GREATER
+        [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Mixed CommandMiddleware keeps runtime generic construction for compatibility; AOT-clean users should use GeneratedCommandMiddleware with a generated registry.")]
+#endif
         public CommandMiddleware(IServiceProvider serviceProvider, IOptions<CommandOptions> commandOptions, IPackageMapper<TNetPackageInfo, TPackageInfo> packageMapper)
         {
             _logger = serviceProvider.GetService<ILoggerFactory>().CreateLogger("CommandMiddleware");
 
+            var generatedRegistries = serviceProvider.GetServices<IGeneratedCommandRegistry<TKey, TPackageInfo>>().ToList();
+
+            if (generatedRegistries.Count > 0)
+            {
+                // Any generated registry intentionally selects the AOT-friendly fast path and skips legacy reflection/discovery.
+                _commands = CreateCommandsFromGeneratedRegistries(serviceProvider, commandOptions.Value, generatedRegistries);
+                PackageMapper = packageMapper != null ? packageMapper : CreatePackageMapper(serviceProvider);
+                WireUnknownPackageHandler(commandOptions.Value);
+                return;
+            }
+
+            // Mixed CommandMiddleware is compatibility-only when no generated registry is present.
+            // AOT-clean applications should use GeneratedCommandMiddleware with IGeneratedCommandRegistry.
+            InitializeViaReflection(serviceProvider, commandOptions, packageMapper);
+        }
+
+        [RequiresUnreferencedCode("Discovers commands via reflection. Use IGeneratedCommandRegistry (via SuperSocket.Command.SourceGeneration) for trimming/AOT compatibility.")]
+#if NET7_0_OR_GREATER
+        [RequiresDynamicCode("Constructs closed generic CommandWrap/CommandSetFactory types at runtime. Use IGeneratedCommandRegistry for AOT compatibility.")]
+#endif
+        private void InitializeViaReflection(IServiceProvider serviceProvider, IOptions<CommandOptions> commandOptions, IPackageMapper<TNetPackageInfo, TPackageInfo> packageMapper)
+        {
             var sessionFactory = serviceProvider.GetService<ISessionFactory>();
             var sessionType = sessionFactory.SessionType;
 
@@ -166,7 +193,7 @@ namespace SuperSocket.Command
             var comparer = serviceProvider.GetService<IEqualityComparer<TKey>>();
 
             var commandDict = comparer == null ?
-                new Dictionary<TKey, ICommandSet>() : new Dictionary<TKey, ICommandSet>(comparer);
+                new Dictionary<TKey, IGeneratedCommandSet<TKey, TPackageInfo>>() : new Dictionary<TKey, IGeneratedCommandSet<TKey, TPackageInfo>>(comparer);
 
             foreach (var cmd in commands)
             {
@@ -182,10 +209,41 @@ namespace SuperSocket.Command
             }
 
             _commands = commandDict;
-            
+
             PackageMapper = packageMapper != null ? packageMapper : CreatePackageMapper(serviceProvider);
 
-            var unknownPackageHandler = commandOptions.Value.UnknownPackageHandler;
+            WireUnknownPackageHandler(commandOptions.Value);
+        }
+
+        private Dictionary<TKey, IGeneratedCommandSet<TKey, TPackageInfo>> CreateCommandsFromGeneratedRegistries(
+            IServiceProvider serviceProvider,
+            CommandOptions commandOptions,
+            IEnumerable<IGeneratedCommandRegistry<TKey, TPackageInfo>> generatedRegistries)
+        {
+            var comparer = serviceProvider.GetService<IEqualityComparer<TKey>>();
+            var commandDict = comparer == null ?
+                new Dictionary<TKey, IGeneratedCommandSet<TKey, TPackageInfo>>() : new Dictionary<TKey, IGeneratedCommandSet<TKey, TPackageInfo>>(comparer);
+
+            foreach (var registration in generatedRegistries.SelectMany(r => r.GetRegistrations()))
+            {
+                if (commandDict.ContainsKey(registration.Key))
+                {
+                    var error = $"Duplicated command with Key {registration.Key} is found: {registration.ActualCommandType}";
+                    _logger.LogError(error);
+                    throw new Exception(error);
+                }
+
+                var commandSet = registration.CommandSetFactory(serviceProvider, commandOptions);
+                commandDict.Add(registration.Key, commandSet);
+                _logger.LogDebug($"The command with key {registration.Key} is registered: {registration.ActualCommandType}");
+            }
+
+            return commandDict;
+        }
+
+        private void WireUnknownPackageHandler(CommandOptions commandOptions)
+        {
+            var unknownPackageHandler = commandOptions.UnknownPackageHandler;
 
             if (unknownPackageHandler != null)
             {
@@ -193,11 +251,15 @@ namespace SuperSocket.Command
 
                 if (_unknownPackageHandler == null)
                 {
-                    _logger.LogError($"{nameof(commandOptions.Value.UnknownPackageHandler)} was registered with incorrectly. The expected typew is {typeof(Func<IAppSession, TPackageInfo, ValueTask>).Name}.");
+                    _logger.LogError($"{nameof(commandOptions.UnknownPackageHandler)} was registered incorrectly. The expected type is {typeof(Func<IAppSession, TPackageInfo, CancellationToken, ValueTask>).Name}.");
                 }
-            }            
+            }
         }
 
+        [RequiresUnreferencedCode("Discovers commands and constructs command factories via reflection. Use IGeneratedCommandRegistry for trimming/AOT compatibility.")]
+#if NET7_0_OR_GREATER
+        [RequiresDynamicCode("Constructs closed generic command interfaces and command set factories at runtime. Use IGeneratedCommandRegistry for AOT compatibility.")]
+#endif
         private void RegisterCommandInterfaces(List<CommandTypeInfo> commandInterfaces, List<ICommandSetFactory> commandSetFactories, IServiceProvider serviceProvider, Type sessionType, Type packageType, bool wrapRequired = false)
         {
             var genericTypes = new [] { sessionType, packageType };
@@ -232,6 +294,10 @@ namespace SuperSocket.Command
             RegisterCommandSetFactoriesFromServices(commandSetFactories, serviceProvider, asyncCommandType.CommandType, commandSetFactoryType, asyncCommandType.WrapFactory);
         }
 
+        [RequiresUnreferencedCode("Discovers command services and instantiates command wrappers via reflection. Use IGeneratedCommandRegistry for trimming/AOT compatibility.")]
+#if NET7_0_OR_GREATER
+        [RequiresDynamicCode("Resolves service collections and constructs closed generic command wrappers at runtime. Use IGeneratedCommandRegistry for AOT compatibility.")]
+#endif
         private void RegisterCommandSetFactoriesFromServices(List<ICommandSetFactory> commandSetFactories, IServiceProvider serviceProvider, Type commandType, Type commandSetFactoryType, Func<Type, Type> commandWrapFactory)
         {
             foreach (var command in serviceProvider.GetServices(commandType).OfType<ICommand>())
@@ -270,7 +336,7 @@ namespace SuperSocket.Command
         /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
         protected virtual async ValueTask HandlePackage(IAppSession session, TPackageInfo package, CancellationToken cancellationToken)
         {
-            if (!_commands.TryGetValue(package.Key, out ICommandSet commandSet))
+            if (!_commands.TryGetValue(package.Key, out IGeneratedCommandSet<TKey, TPackageInfo> commandSet))
             {
                 var unknownPackageHandler = _unknownPackageHandler;
 
@@ -310,26 +376,6 @@ namespace SuperSocket.Command
         }
 
         /// <summary>
-        /// Represents a set of commands identified by a key.
-        /// </summary>
-        interface ICommandSet
-        {
-            /// <summary>
-            /// Gets the key that identifies this command set.
-            /// </summary>
-            TKey Key { get; }
-
-            /// <summary>
-            /// Executes the command asynchronously.
-            /// </summary>
-            /// <param name="session">The application session.</param>
-            /// <param name="package">The package containing command information.</param>
-            /// <param name="cancellationToken">The cancellation token.</param>
-            /// <returns>A <see cref="ValueTask"/> representing the asynchronous operation.</returns>
-            ValueTask ExecuteAsync(IAppSession session, TPackageInfo package, CancellationToken cancellationToken);
-        }
-
-        /// <summary>
         /// Contains information about a command type and its factory.
         /// </summary>
         class CommandTypeInfo
@@ -365,6 +411,10 @@ namespace SuperSocket.Command
                 WrapRequired = wrapRequired;
             }
 
+            [RequiresUnreferencedCode("Creates command set factories via reflection. Use IGeneratedCommandRegistry for trimming/AOT compatibility.")]
+#if NET7_0_OR_GREATER
+            [RequiresDynamicCode("Constructs closed generic command wrapper and command set factory types at runtime. Use IGeneratedCommandRegistry for AOT compatibility.")]
+#endif
             public ICommandSetFactory CreateCommandSetFactory(Type type)
             {
                 var commandTyeInfo = new CommandTypeInfo(WrapRequired ? WrapFactory(type) : type, null);
@@ -383,8 +433,12 @@ namespace SuperSocket.Command
             /// </summary>
             /// <param name="serviceProvider">The service provider for dependency injection.</param>
             /// <param name="commandOptions">The command options.</param>
-            /// <returns>An instance of <see cref="ICommandSet"/>.</returns>
-            ICommandSet Create(IServiceProvider serviceProvider, CommandOptions commandOptions);
+            /// <returns>An instance of <see cref="IGeneratedCommandSet{TKey, TPackageInfo}"/>.</returns>
+            [RequiresUnreferencedCode("Creates legacy reflection-backed command sets. Use IGeneratedCommandRegistry for trimming/AOT compatibility.")]
+#if NET7_0_OR_GREATER
+            [RequiresDynamicCode("Constructs command instances from runtime-discovered types. Use IGeneratedCommandRegistry for AOT compatibility.")]
+#endif
+            IGeneratedCommandSet<TKey, TPackageInfo> Create(IServiceProvider serviceProvider, CommandOptions commandOptions);
         }
 
         /// <summary>
@@ -414,8 +468,12 @@ namespace SuperSocket.Command
             /// </summary>
             /// <param name="serviceProvider">The service provider for dependency injection.</param>
             /// <param name="commandOptions">The command options.</param>
-            /// <returns>An instance of <see cref="ICommandSet"/>.</returns>
-            public ICommandSet Create(IServiceProvider serviceProvider, CommandOptions commandOptions)
+            /// <returns>An instance of <see cref="IGeneratedCommandSet{TKey, TPackageInfo}"/>.</returns>
+            [RequiresUnreferencedCode("Creates legacy reflection-backed command sets. Use IGeneratedCommandRegistry for trimming/AOT compatibility.")]
+#if NET7_0_OR_GREATER
+            [RequiresDynamicCode("Constructs command instances from runtime-discovered types. Use IGeneratedCommandRegistry for AOT compatibility.")]
+#endif
+            public IGeneratedCommandSet<TKey, TPackageInfo> Create(IServiceProvider serviceProvider, CommandOptions commandOptions)
             {
                 var commandSet = new CommandSet<TAppSession>();
                 commandSet.Initialize(serviceProvider, CommandType, commandOptions);
@@ -427,7 +485,7 @@ namespace SuperSocket.Command
         /// Represents a set of commands for a specific application session type.
         /// </summary>
         /// <typeparam name="TAppSession">The type of the application session.</typeparam>
-        class CommandSet<TAppSession> : ICommandSet
+        class CommandSet<TAppSession> : IGeneratedCommandSet<TKey, TPackageInfo>
             where TAppSession : IAppSession
         {
             /// <summary>
@@ -470,6 +528,7 @@ namespace SuperSocket.Command
             /// </summary>
             /// <param name="commandType">The command type to extract metadata from.</param>
             /// <returns>A <see cref="CommandMetadata"/> instance containing the command's metadata.</returns>
+            [RequiresUnreferencedCode("Reads command metadata attributes from runtime-discovered command types. Use IGeneratedCommandRegistry for trimming/AOT compatibility.")]
             private CommandMetadata GetCommandMetadata(Type commandType)
             {
                 var cmdAtt = commandType.GetCustomAttribute(typeof(CommandAttribute)) as CommandAttribute;
@@ -525,6 +584,10 @@ namespace SuperSocket.Command
             /// <param name="serviceProvider">The service provider for dependency injection.</param>
             /// <param name="commandTypeInfo">Information about the command type.</param>
             /// <param name="commandOptions">The command options.</param>
+            [RequiresUnreferencedCode("Creates runtime-discovered command types and reads command metadata attributes. Use IGeneratedCommandRegistry for trimming/AOT compatibility.")]
+#if NET7_0_OR_GREATER
+            [RequiresDynamicCode("Uses ActivatorUtilities with runtime-discovered command types. Use IGeneratedCommandRegistry for AOT compatibility.")]
+#endif
             public void Initialize(IServiceProvider serviceProvider, CommandTypeInfo commandTypeInfo, CommandOptions commandOptions)
             {
                 var command = commandTypeInfo.Command;
@@ -556,13 +619,9 @@ namespace SuperSocket.Command
                     throw new Exception($"The command {cmdMeta.Name}'s Key {cmdMeta.Key} cannot be converted to the desired type '{typeof(TKey).Name}'.", e);
                 }
 
-                var filters = new List<ICommandFilter>();
-
-                if (commandOptions.GlobalCommandFilterTypes.Any())
-                    filters.AddRange(commandOptions.GlobalCommandFilterTypes.Select(t => ActivatorUtilities.CreateInstance(serviceProvider, t) as CommandFilterBaseAttribute));
-
-                filters.AddRange(commandTypeInfo.ActualCommandType.GetCustomAttributes(true).OfType<CommandFilterBaseAttribute>());
-                Filters = filters;
+                Filters = commandOptions.CreateCommandFilters(
+                    serviceProvider,
+                    commandTypeInfo.ActualCommandType.GetCustomAttributes(true).OfType<CommandFilterBaseAttribute>().ToList());
             }
 
             public async ValueTask ExecuteAsync(IAppSession session, TPackageInfo package, CancellationToken cancellationToken)

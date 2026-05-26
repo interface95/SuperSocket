@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,7 +45,7 @@ namespace SuperSocket.Server.Host
         /// <typeparam name="TPipelineFilter">The type of the pipeline filter.</typeparam>
         /// <param name="hostBuilder">The host builder to convert.</param>
         /// <returns>An instance of <see cref="ISuperSocketHostBuilder{TReceivePackage}"/>.</returns>
-        public static ISuperSocketHostBuilder<TReceivePackage> AsSuperSocketHostBuilder<TReceivePackage, TPipelineFilter>(this IHostBuilder hostBuilder)
+        public static ISuperSocketHostBuilder<TReceivePackage> AsSuperSocketHostBuilder<TReceivePackage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilter>(this IHostBuilder hostBuilder)
             where TPipelineFilter : class, IPipelineFilter<TReceivePackage>
         {
             if (hostBuilder is ISuperSocketHostBuilder<TReceivePackage> ssHostBuilder)

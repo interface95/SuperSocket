@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -135,7 +138,135 @@ namespace SuperSocket.Server.Host
             var config = builderContext.Configuration.GetSection("serverOptions");
             var serverConfig = serverOptionReader(builderContext, config);
 
-            services.Configure<ServerOptions>(serverConfig);
+            services.Configure<ServerOptions>(options => BindServerOptions(serverConfig, options));
+        }
+
+        private static void BindServerOptions(IConfiguration configuration, ServerOptions options)
+        {
+            SetString(configuration, "name", value => options.Name = value);
+            SetInt(configuration, "maxPackageLength", value => options.MaxPackageLength = value);
+            SetInt(configuration, "receiveBufferSize", value => options.ReceiveBufferSize = value);
+            SetInt(configuration, "sendBufferSize", value => options.SendBufferSize = value);
+            SetBool(configuration, "readAsDemand", value => options.ReadAsDemand = value);
+            SetInt(configuration, "receiveTimeout", value => options.ReceiveTimeout = value);
+            SetInt(configuration, "sendTimeout", value => options.SendTimeout = value);
+            SetInt(configuration, "clearIdleSessionInterval", value => options.ClearIdleSessionInterval = value);
+            SetInt(configuration, "idleSessionTimeOut", value => options.IdleSessionTimeOut = value);
+            SetInt(configuration, "packageHandlingTimeOut", value => options.PackageHandlingTimeOut = value);
+            SetBool(configuration, "enableProxyProtocol", value => options.EnableProxyProtocol = value);
+
+            var valuesSection = configuration.GetSection("values");
+            var valueSections = valuesSection.GetChildren().ToList();
+
+            if (valueSections.Count > 0)
+            {
+                options.Values = valueSections.ToDictionary(section => section.Key, section => section.Value);
+            }
+
+            var listenersSection = configuration.GetSection("listeners");
+            var listenerSections = listenersSection.GetChildren().ToList();
+
+            if (listenerSections.Count > 0)
+            {
+                options.Listeners = listenerSections.Select(BindListenOptions).ToList();
+            }
+        }
+
+        private static ListenOptions BindListenOptions(IConfiguration configuration)
+        {
+            var options = new ListenOptions();
+
+            SetString(configuration, "ip", value => options.Ip = value);
+            SetInt(configuration, "port", value => options.Port = value);
+            SetString(configuration, "path", value => options.Path = value);
+            SetInt(configuration, "backLog", value => options.BackLog = value);
+            SetBool(configuration, "noDelay", value => options.NoDelay = value);
+            SetTimeSpan(configuration, "connectionAcceptTimeOut", value => options.ConnectionAcceptTimeOut = value);
+            SetBool(configuration, "udpExclusiveAddressUse", value => options.UdpExclusiveAddressUse = value);
+
+            var authenticationSection = configuration.GetSection("authenticationOptions");
+
+            if (authenticationSection.GetChildren().Any())
+            {
+                options.AuthenticationOptions = BindAuthenticationOptions(authenticationSection);
+            }
+
+            return options;
+        }
+
+        private static ServerAuthenticationOptions BindAuthenticationOptions(IConfiguration configuration)
+        {
+            var options = new ServerAuthenticationOptions();
+
+            SetEnum<SslProtocols>(configuration, "enabledSslProtocols", value => options.EnabledSslProtocols = value);
+
+            var certificateSection = configuration.GetSection("certificateOptions");
+
+            if (certificateSection.GetChildren().Any())
+            {
+                options.CertificateOptions = BindCertificateOptions(certificateSection);
+            }
+
+            return options;
+        }
+
+        private static CertificateOptions BindCertificateOptions(IConfiguration configuration)
+        {
+            var options = new CertificateOptions();
+
+            SetString(configuration, "filePath", value => options.FilePath = value);
+            SetString(configuration, "password", value => options.Password = value);
+            SetString(configuration, "storeName", value => options.StoreName = value);
+            SetString(configuration, "thumbprint", value => options.Thumbprint = value);
+            SetEnum<StoreLocation>(configuration, "storeLocation", value => options.StoreLocation = value);
+            SetEnum<X509KeyStorageFlags>(configuration, "keyStorageFlags", value => options.KeyStorageFlags = value);
+
+            return options;
+        }
+
+        private static void SetString(IConfiguration configuration, string key, Action<string> setter)
+        {
+            var value = configuration[key];
+
+            if (!string.IsNullOrEmpty(value))
+            {
+                setter(value);
+            }
+        }
+
+        private static void SetInt(IConfiguration configuration, string key, Action<int> setter)
+        {
+            if (int.TryParse(configuration[key], out var value))
+            {
+                setter(value);
+            }
+        }
+
+        private static void SetBool(IConfiguration configuration, string key, Action<bool> setter)
+        {
+            if (bool.TryParse(configuration[key], out var value))
+            {
+                setter(value);
+            }
+        }
+
+        private static void SetTimeSpan(IConfiguration configuration, string key, Action<TimeSpan> setter)
+        {
+            if (TimeSpan.TryParse(configuration[key], out var value))
+            {
+                setter(value);
+            }
+        }
+
+        private static void SetEnum<TEnum>(IConfiguration configuration, string key, Action<TEnum> setter)
+            where TEnum : struct
+        {
+            var value = configuration[key];
+
+            if (!string.IsNullOrEmpty(value))
+            {
+                setter((TEnum)Enum.Parse(typeof(TEnum), value, true));
+            }
         }
 
         /// <summary>
@@ -210,7 +341,7 @@ namespace SuperSocket.Server.Host
         /// </summary>
         /// <typeparam name="THostedService">The type of the hosted service to register.</typeparam>
         /// <param name="servicesInHost">The service collection to register the hosted service into.</param>
-        protected virtual void RegisterHostedService<THostedService>(IServiceCollection servicesInHost)
+        protected virtual void RegisterHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>(IServiceCollection servicesInHost)
             where THostedService : class, IHostedService
         {
             servicesInHost.AddSingleton<THostedService, THostedService>();
@@ -250,25 +381,13 @@ namespace SuperSocket.Server.Host
         /// </summary>
         /// <typeparam name="TPipelineFilter">The type of the pipeline filter to use.</typeparam>
         /// <returns>The configured host builder.</returns>
-        public virtual ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilter<TPipelineFilter>()
+        public virtual ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilter>()
             where TPipelineFilter : class, IPipelineFilter<TReceivePackage>
         {
-            var hasDefaultConstructor = typeof(TPipelineFilter).GetConstructor(Type.EmptyTypes) != null;
-
             return this.ConfigureServices((ctx, services) =>
                 {
-                    if (hasDefaultConstructor)
-                    {
-                        services.AddSingleton(
-                            serviceType: typeof(IPipelineFilterFactory<TReceivePackage>),
-                            implementationType: typeof(DefaultConstructorPipelineFilterFactory<,>).MakeGenericType(typeof(TReceivePackage), typeof(TPipelineFilter)));
-                    }
-                    else
-                    {
-                        services.AddTransient<TPipelineFilter>();
-                        services.AddSingleton<IPipelineFilterFactory<TReceivePackage>, DefaultPipelineFilterFactory<TReceivePackage, TPipelineFilter>>();
-                    }
-
+                    services.AddTransient<TPipelineFilter>();
+                    services.AddSingleton<IPipelineFilterFactory<TReceivePackage>, DefaultPipelineFilterFactory<TReceivePackage, TPipelineFilter>>();
                     services.AddSingleton<IPipelineFilterFactory>(serviceProvider => serviceProvider.GetRequiredService<IPipelineFilterFactory<TReceivePackage>>() as IPipelineFilterFactory);
                 });
         }
@@ -278,7 +397,7 @@ namespace SuperSocket.Server.Host
         /// </summary>
         /// <typeparam name="TPipelineFilterFactory">The type of the pipeline filter factory to use.</typeparam>
         /// <returns>The configured host builder.</returns>
-        public virtual ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilterFactory<TPipelineFilterFactory>()
+        public virtual ISuperSocketHostBuilder<TReceivePackage> UsePipelineFilterFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilterFactory>()
             where TPipelineFilterFactory : class, IPipelineFilterFactory<TReceivePackage>
         {
             return this.ConfigureServices((ctx, services) =>
@@ -320,7 +439,7 @@ namespace SuperSocket.Server.Host
         /// </summary>
         /// <typeparam name="THostedService">The type of the hosted service to use.</typeparam>
         /// <returns>The configured host builder.</returns>
-        public virtual ISuperSocketHostBuilder<TReceivePackage> UseHostedService<THostedService>()
+        public virtual ISuperSocketHostBuilder<TReceivePackage> UseHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>()
             where THostedService : class, IHostedService
         {
             if (!typeof(SuperSocketService<TReceivePackage>).IsAssignableFrom(typeof(THostedService)))
@@ -371,7 +490,7 @@ namespace SuperSocket.Server.Host
         /// </summary>
         /// <typeparam name="TMiddleware">The type of the middleware to use.</typeparam>
         /// <returns>The configured host builder.</returns>
-        public virtual ISuperSocketHostBuilder<TReceivePackage> UseMiddleware<TMiddleware>()
+        public virtual ISuperSocketHostBuilder<TReceivePackage> UseMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TMiddleware>()
             where TMiddleware : class, IMiddleware
         {
             return this.ConfigureServices((ctx, services) =>
@@ -453,7 +572,7 @@ namespace SuperSocket.Server.Host
         /// <typeparam name="TReceivePackage">The type of packages to be received.</typeparam>
         /// <typeparam name="TPipelineFilter">The type of pipeline filter to use.</typeparam>
         /// <returns>A new ISuperSocketHostBuilder with the specified pipeline filter.</returns>
-        public static ISuperSocketHostBuilder<TReceivePackage> Create<TReceivePackage, TPipelineFilter>()
+        public static ISuperSocketHostBuilder<TReceivePackage> Create<TReceivePackage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilter>()
             where TPipelineFilter : class, IPipelineFilter<TReceivePackage>
         {
             return Create<TReceivePackage, TPipelineFilter>(args: null);
@@ -466,7 +585,7 @@ namespace SuperSocket.Server.Host
         /// <typeparam name="TPipelineFilter">The type of pipeline filter to use.</typeparam>
         /// <param name="args">Command line arguments.</param>
         /// <returns>A new ISuperSocketHostBuilder with the specified pipeline filter.</returns>
-        public static ISuperSocketHostBuilder<TReceivePackage> Create<TReceivePackage, TPipelineFilter>(string[] args)
+        public static ISuperSocketHostBuilder<TReceivePackage> Create<TReceivePackage, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TPipelineFilter>(string[] args)
             where TPipelineFilter : class, IPipelineFilter<TReceivePackage>
         {
             return new SuperSocketHostBuilder<TReceivePackage>(args)

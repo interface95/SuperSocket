@@ -27,6 +27,7 @@
 
 5. **Command Handling System:**
     Command-based processing model to handle client requests efficiently.
+    SuperSocket.Command also includes an AOT-friendly source generator path for Native AOT applications.
 
 6. **WebSocket Support:**
     Full implementation of the WebSocket protocol with extensions like compression.
@@ -64,6 +65,7 @@
 | **SuperSocket.Server** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Server)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Server) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Server.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Server/)|
 | **SuperSocket.Server.Abstractions** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Server.Abstractions)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Server.Abstractions) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Server.Abstractions.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Server.Abstractions/)|
 | **SuperSocket.Command** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Command)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Command) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Command.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Command/)|
+| **SuperSocket.Command.SourceGeneration** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Command.SourceGeneration)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Command.SourceGeneration) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Command.SourceGeneration.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Command.SourceGeneration/)|
 | **SuperSocket.Client** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Client)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Client) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Client.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Client/)|
 | **SuperSocket.Client.Proxy** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.Client.Proxy)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.Client.Proxy) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.Client.Proxy.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.Client.Proxy/)|
 | **SuperSocket.WebSocket** | [![MyGet Version](https://img.shields.io/myget/supersocket/vpre/SuperSocket.WebSocket)](https://www.myget.org/feed/supersocket/package/nuget/SuperSocket.WebSocket) | [![NuGet Version](https://img.shields.io/nuget/vpre/SuperSocket.WebSocket.svg?style=flat)](https://www.nuget.org/packages/SuperSocket.WebSocket/)|
@@ -75,6 +77,12 @@
 
 
 Nightly build packages:  https://www.myget.org/F/supersocket/api/v3/index.json
+
+---
+
+##### AOT-friendly command registration
+
+For Native AOT applications, `SuperSocket.Command` provides a source-generated command registry path. Declare a `[CommandRegistry]` partial class that implements `IGeneratedCommandRegistry<TKey, TPackageInfo>`, register it in DI, and use `UseGeneratedCommand<TKey, TPackageInfo>()` instead of the legacy reflection-based command discovery path. See [CommandSourceGenerator.md](docs/CommandSourceGenerator.md) and `samples/CommandServer.Aot` for a complete `<PublishAot>true</PublishAot>` example.
 
 ---
 
